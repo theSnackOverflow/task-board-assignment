@@ -14,3 +14,15 @@ export function filterByPriority(tasks: Task[], selected: Priority[]): Task[] {
   if (selected.length === 0) return tasks
   return tasks.filter((t) => selected.includes(t.priority))
 }
+
+export function filterByTags(tasks: Task[], selected: string[]): Task[] {
+  if (selected.length === 0) return tasks
+  return tasks.filter((t) => (t.tags ?? []).some((tag) => selected.includes(tag)))
+}
+
+export const UNASSIGNED = 'unassigned'
+
+export function filterByAssignee(tasks: Task[], selected: string[]): Task[] {
+  if (selected.length === 0) return tasks
+  return tasks.filter((t) => selected.includes(t.assignee ?? UNASSIGNED))
+}

@@ -158,6 +158,29 @@ describe('검색과 필터', () => {
       vi.useRealTimers()
     }
   })
+
+  it('태그와 담당자 필터가 교집합으로 적용된다', async () => {
+    const client = makeClient({
+      getTasks: vi
+        .fn()
+        .mockResolvedValue([
+          makeTask('a', { title: '버그 수정', tags: ['bug'], assignee: '김민준' }),
+          makeTask('b', { title: '버그 문서화', tags: ['bug', 'docs'] }),
+          makeTask('c', { title: '배포 정리', tags: ['infra'], assignee: '김민준' }),
+        ]),
+    })
+    renderBoard(client)
+    await screen.findByText('버그 수정')
+
+    fireEvent.click(screen.getByLabelText('bug'))
+    expect(screen.queryByText('배포 정리')).not.toBeInTheDocument()
+    expect(screen.getByText('2건')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('김민준'))
+    expect(screen.getByText('버그 수정')).toBeInTheDocument()
+    expect(screen.queryByText('버그 문서화')).not.toBeInTheDocument()
+    expect(screen.getByText('1건')).toBeInTheDocument()
+  })
 })
 
 describe('태스크 수정과 삭제', () => {

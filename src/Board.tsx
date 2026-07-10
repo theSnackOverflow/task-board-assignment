@@ -2,11 +2,18 @@ import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'rea
 import type { Task, Status, Priority } from './types'
 import { Column } from './components/Column'
 import { DeleteDialog } from './components/DeleteDialog'
+import { FilterDropdown } from './components/FilterDropdown'
 import { TaskModal } from './components/TaskModal'
 import { useDebouncedValue } from './hooks/useDebouncedValue'
 import { useBoardTasks, useStoreState, useTaskStore } from './hooks/useTasks'
 import { pendingTaskIds } from './lib/mutations'
-import { filterByPriority, filterByTitle } from './lib/tasks'
+import {
+  filterByAssignee,
+  filterByPriority,
+  filterByTags,
+  filterByTitle,
+  UNASSIGNED,
+} from './lib/tasks'
 
 const COLUMNS: { status: Status; title: string }[] = [
   { status: 'todo', title: 'To Do' },
@@ -30,6 +37,8 @@ export default function Board() {
   const [deleting, setDeleting] = useState<Task | null>(null)
   const [query, setQuery] = useState('')
   const [priorities, setPriorities] = useState<Priority[]>([])
+  const [tags, setTags] = useState<string[]>([])
+  const [assignees, setAssignees] = useState<string[]>([])
   const [liveMessage, setLiveMessage] = useState('')
 
   useEffect(() => {
@@ -40,8 +49,12 @@ export default function Board() {
   const deferredQuery = useDeferredValue(debouncedQuery)
 
   const filtered = useMemo(
-    () => filterByPriority(filterByTitle(tasks, deferredQuery), priorities),
-    [tasks, deferredQuery, priorities],
+    () =>
+      filterByAssignee(
+        filterByTags(filterByPriority(filterByTitle(tasks, deferredQuery), priorities), tags),
+        assignees,
+      ),
+    [tasks, deferredQuery, priorities, tags, assignees],
   )
 
   const byStatus = useMemo(() => {
@@ -50,15 +63,32 @@ export default function Board() {
     return map
   }, [filtered])
 
+  const tagOptions = useMemo(
+    () => [...new Set(tasks.flatMap((t) => t.tags ?? []))].sort(),
+    [tasks],
+  )
+  const assigneeOptions = useMemo(
+    () => [...new Set(tasks.map((t) => t.assignee ?? UNASSIGNED))].sort(),
+    [tasks],
+  )
+
   const pendingIds = useMemo(() => pendingTaskIds(state.queue), [state.queue])
 
-  const filterActive = deferredQuery.trim() !== '' || priorities.length > 0
+  const filterActive =
+    deferredQuery.trim() !== '' ||
+    priorities.length > 0 ||
+    tags.length > 0 ||
+    assignees.length > 0
 
   function togglePriority(value: Priority) {
     setPriorities((prev) =>
       prev.includes(value) ? prev.filter((p) => p !== value) : [...prev, value],
     )
   }
+
+  const toggleIn =
+    (setter: (updater: (prev: string[]) => string[]) => void) => (value: string) =>
+      setter((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]))
 
   const openCreate = useCallback((status: Status) => setModal({ mode: 'create', status }), [])
   const openEdit = useCallback((task: Task) => setModal({ mode: 'edit', task }), [])
@@ -159,6 +189,21 @@ export default function Board() {
               {p.label}
             </button>
           ))}
+          <FilterDropdown
+            label="태그"
+            options={tagOptions.map((tag) => ({ value: tag, label: tag }))}
+            selected={tags}
+            onToggle={toggleIn(setTags)}
+          />
+          <FilterDropdown
+            label="담당자"
+            options={assigneeOptions.map((name) => ({
+              value: name,
+              label: name === UNASSIGNED ? '미배정' : name,
+            }))}
+            selected={assignees}
+            onToggle={toggleIn(setAssignees)}
+          />
           {filterActive && <span className="search-count">{filtered.length}건</span>}
         </div>
         <button type="button" className="add-task" onClick={() => openCreate('todo')}>

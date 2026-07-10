@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { moveTask, filterByTitle, filterByPriority } from './tasks'
+import { moveTask, filterByTitle, filterByPriority, filterByTags, filterByAssignee } from './tasks'
 import type { Task } from '../types'
 
 const make = (id: string, over: Partial<Task> = {}): Task => ({
@@ -50,5 +50,43 @@ describe('filterByPriority', () => {
   it('선택이 없으면 전체를 반환한다', () => {
     const tasks = [make('a'), make('b')]
     expect(filterByPriority(tasks, [])).toBe(tasks)
+  })
+})
+
+describe('filterByTags', () => {
+  it('선택된 태그 중 하나라도 가진 태스크를 반환한다', () => {
+    const tasks = [
+      make('a', { tags: ['bug', 'frontend'] }),
+      make('b', { tags: ['docs'] }),
+      make('c', { tags: [] }),
+    ]
+    expect(filterByTags(tasks, ['bug', 'docs'])).toHaveLength(2)
+  })
+
+  it('tags가 없는 태스크는 태그 필터에서 제외된다', () => {
+    const tasks = [make('a', { tags: undefined }), make('b', { tags: ['bug'] })]
+    expect(filterByTags(tasks, ['bug'])).toHaveLength(1)
+  })
+
+  it('선택이 없으면 전체를 반환한다', () => {
+    const tasks = [make('a')]
+    expect(filterByTags(tasks, [])).toBe(tasks)
+  })
+})
+
+describe('filterByAssignee', () => {
+  it('선택된 담당자의 태스크를 반환하고, 담당자 없음은 unassigned로 정규화한다', () => {
+    const tasks = [
+      make('a', { assignee: '김민준' }),
+      make('b', { assignee: undefined }),
+      make('c', { assignee: 'unassigned' }),
+    ]
+    expect(filterByAssignee(tasks, ['unassigned'])).toHaveLength(2)
+    expect(filterByAssignee(tasks, ['김민준'])).toHaveLength(1)
+  })
+
+  it('선택이 없으면 전체를 반환한다', () => {
+    const tasks = [make('a')]
+    expect(filterByAssignee(tasks, [])).toBe(tasks)
   })
 })
