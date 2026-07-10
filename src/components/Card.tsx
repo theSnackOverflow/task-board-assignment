@@ -13,18 +13,45 @@ interface Props {
   onEdit: (task: Task) => void
   onDelete: (task: Task) => void
   onDragChange: (id: string | null) => void
+  onMoveKey: (task: Task, direction: -1 | 1) => void
 }
 
-export const Card = memo(function Card({ task, pending, onEdit, onDelete, onDragChange }: Props) {
+export const Card = memo(function Card({
+  task,
+  pending,
+  onEdit,
+  onDelete,
+  onDragChange,
+  onMoveKey,
+}: Props) {
   return (
     <article
       className={`card priority-${task.priority}`}
       draggable
+      tabIndex={0}
+      data-task-id={task.id}
+      aria-describedby="card-shortcuts"
       onDragStart={(e) => {
         e.dataTransfer.setData('text/plain', task.id)
         onDragChange(task.id)
       }}
       onDragEnd={() => onDragChange(null)}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault()
+          onMoveKey(task, -1)
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault()
+          onMoveKey(task, 1)
+        } else if (e.key === 'Enter') {
+          e.preventDefault()
+          onEdit(task)
+        } else if (e.key === 'Delete' || e.key === 'Backspace') {
+          e.preventDefault()
+          onDelete(task)
+        }
+      }}
     >
       {pending && <span className="pending-dot" aria-label="저장 중" />}
       <div className="card-actions">

@@ -18,6 +18,7 @@ interface Props {
   onEdit: (task: Task) => void
   onDelete: (task: Task) => void
   onDragChange: (id: string | null) => void
+  onMoveKey: (task: Task, direction: -1 | 1) => void
 }
 
 export const Column = memo(function Column({
@@ -32,6 +33,7 @@ export const Column = memo(function Column({
   onEdit,
   onDelete,
   onDragChange,
+  onMoveKey,
 }: Props) {
   const bodyRef = useRef<HTMLDivElement>(null)
   const [scrollTop, setScrollTop] = useState(0)
@@ -89,11 +91,12 @@ export const Column = memo(function Column({
         {tasks.length === 0 && emptyLabel ? (
           <p className="column-empty">{emptyLabel}</p>
         ) : (
-          <div className="column-spacer" style={{ height: totalHeight }}>
+          <div className="column-spacer" role="list" style={{ height: totalHeight }}>
             {visible.map((t, i) => (
               <div
                 key={t.id}
                 className="card-slot"
+                role="listitem"
                 style={{ transform: `translateY(${(start + i) * ROW_HEIGHT}px)` }}
               >
                 <Card
@@ -102,6 +105,7 @@ export const Column = memo(function Column({
                   onEdit={onEdit}
                   onDelete={onDelete}
                   onDragChange={onDragChange}
+                  onMoveKey={onMoveKey}
                 />
               </div>
             ))}

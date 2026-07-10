@@ -30,6 +30,7 @@ export default function Board() {
   const [deleting, setDeleting] = useState<Task | null>(null)
   const [query, setQuery] = useState('')
   const [priorities, setPriorities] = useState<Priority[]>([])
+  const [liveMessage, setLiveMessage] = useState('')
 
   useEffect(() => {
     void store.actions.loadTasks()
@@ -62,6 +63,21 @@ export default function Board() {
   const openCreate = useCallback((status: Status) => setModal({ mode: 'create', status }), [])
   const openEdit = useCallback((task: Task) => setModal({ mode: 'edit', task }), [])
   const openDelete = useCallback((task: Task) => setDeleting(task), [])
+
+  const moveByKeyboard = useCallback(
+    (task: Task, direction: -1 | 1) => {
+      const order = COLUMNS.map((c) => c.status)
+      const next = order[order.indexOf(task.status) + direction]
+      if (!next) return
+      store.actions.move(task.id, next)
+      const columnTitle = COLUMNS.find((c) => c.status === next)?.title ?? next
+      setLiveMessage(`'${task.title}' 태스크를 ${columnTitle}(으)로 이동했습니다.`)
+      requestAnimationFrame(() => {
+        document.querySelector<HTMLElement>(`[data-task-id="${CSS.escape(task.id)}"]`)?.focus()
+      })
+    },
+    [store],
+  )
 
   const dialogs = (
     <>
@@ -164,9 +180,17 @@ export default function Board() {
             onEdit={openEdit}
             onDelete={openDelete}
             onDragChange={store.actions.setDragging}
+            onMoveKey={moveByKeyboard}
           />
         ))}
       </div>
+      <p id="card-shortcuts" className="sr-only">
+        카드에 포커스한 상태에서 좌우 화살표 키로 컬럼 이동, Enter로 수정, Delete로 삭제할 수
+        있습니다.
+      </p>
+      <p className="sr-only" role="status">
+        {liveMessage}
+      </p>
       {dialogs}
     </>
   )

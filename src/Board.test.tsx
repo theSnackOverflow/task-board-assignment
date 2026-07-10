@@ -102,6 +102,30 @@ describe('태스크 생성', () => {
   })
 })
 
+describe('키보드 접근성', () => {
+  it('카드에 포커스하고 오른쪽 화살표를 누르면 다음 컬럼으로 이동한다', async () => {
+    const client = makeClient({
+      getTasks: vi.fn().mockResolvedValue([makeTask('a', { title: '키보드 태스크' })]),
+      updateTask: vi
+        .fn()
+        .mockResolvedValue(makeTask('a', { status: 'in-progress', version: 2 })),
+    })
+    renderBoard(client)
+    await screen.findByText('키보드 태스크')
+
+    const card = screen.getByText('키보드 태스크').closest('.card') as HTMLElement
+    card.focus()
+    fireEvent.keyDown(card, { key: 'ArrowRight' })
+
+    const inProgress = screen.getByRole('region', { name: 'In Progress' })
+    expect(within(inProgress).getByText('키보드 태스크')).toBeInTheDocument()
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+  })
+})
+
 describe('검색과 필터', () => {
   it('검색은 디바운스 후 제목으로 필터링하고 결과 건수를 보여준다', async () => {
     vi.useFakeTimers()
