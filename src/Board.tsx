@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import type { Task, Status } from './types'
-import { getTasks } from './api/client'
 import { Column } from './components/Column'
+import { useBoardTasks, useStoreState, useTaskStore } from './hooks/useTasks'
 
 const COLUMNS: { status: Status; title: string }[] = [
   { status: 'todo', title: 'To Do' },
@@ -10,25 +10,13 @@ const COLUMNS: { status: Status; title: string }[] = [
 ]
 
 export default function Board() {
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [loading, setLoading] = useState(true)
+  const store = useTaskStore()
+  const state = useStoreState()
+  const tasks = useBoardTasks()
 
   useEffect(() => {
-    // 순진한 초기 로드: 로딩만 처리합니다.
-    // TODO(P1): 에러 상태 + 재시도, 빈 상태 처리를 구현하세요.
-    getTasks()
-      .then((data) => setTasks(data))
-      .finally(() => setLoading(false))
-  }, [])
-
-  // ⚠️ 서버에 저장하지 않고 로컬 상태만 바꾸는 "순진한" 이동입니다.
-  // TODO(P1): 낙관적 업데이트 + 실패 시 롤백 + 경쟁 상태 처리를 구현하세요.
-  //   - updateTask(id, { status, version }) 로 서버에 반영
-  //   - 실패(15%)하면 이전 상태로 되돌리고 사용자에게 알림
-  //   - 같은 카드를 빠르게 연속 이동해도 최종 상태가 서버와 일치하도록
-  const moveTask = (id: string, status: Status) => {
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, status } : t)))
-  }
+    void store.actions.loadTasks()
+  }, [store])
 
   const byStatus = useMemo(() => {
     const map: Record<Status, Task[]> = { todo: [], 'in-progress': [], done: [] }
@@ -36,7 +24,28 @@ export default function Board() {
     return map
   }, [tasks])
 
-  if (loading) return <p className="hint">불러오는 중…</p>
+  if (state.load.status === 'idle' || state.load.status === 'loading') {
+    return <BoardSkeleton />
+  }
+
+  if (state.load.status === 'error') {
+    return (
+      <div className="board-status" role="alert">
+        <p>{state.load.error ?? '데이터를 불러오지 못했습니다.'}</p>
+        <button type="button" onClick={() => store.actions.retryLoad()}>
+          다시 시도
+        </button>
+      </div>
+    )
+  }
+
+  if (tasks.length === 0) {
+    return (
+      <div className="board-status">
+        <p>태스크가 없습니다.</p>
+      </div>
+    )
+  }
 
   return (
     <div className="board">
@@ -46,8 +55,25 @@ export default function Board() {
           title={col.title}
           status={col.status}
           tasks={byStatus[col.status]}
-          onMove={moveTask}
+          onMove={store.actions.move}
         />
+      ))}
+    </div>
+  )
+}
+
+function BoardSkeleton() {
+  return (
+    <div className="board" aria-busy="true" aria-label="불러오는 중">
+      {COLUMNS.map((col) => (
+        <section key={col.status} className="column">
+          <h2 className="column-title">{col.title}</h2>
+          <div className="column-body">
+            {Array.from({ length: 6 }, (_, i) => (
+              <div key={i} className="card card-skeleton" />
+            ))}
+          </div>
+        </section>
       ))}
     </div>
   )
