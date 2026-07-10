@@ -236,8 +236,54 @@ body {
 
 .board-toolbar {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 12px;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+  width: 200px;
+}
+
+.filter-chip {
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  background: var(--card-bg);
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.filter-chip.active {
+  border-color: #0052cc;
+  background: #deebff;
+  color: #0052cc;
+  font-weight: 600;
+}
+
+.search-count {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.column-empty {
+  margin: 8px 4px;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
 }
 
 .add-task {

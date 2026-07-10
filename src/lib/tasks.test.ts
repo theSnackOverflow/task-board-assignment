@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { moveTask, filterByTitle } from './tasks'
+import { moveTask, filterByTitle, filterByPriority } from './tasks'
 import type { Task } from '../types'
 
 const make = (id: string, over: Partial<Task> = {}): Task => ({
@@ -38,5 +38,17 @@ describe('filterByTitle', () => {
   it('빈 검색어면 전체를 반환한다', () => {
     const tasks = [make('a'), make('b')]
     expect(filterByTitle(tasks, '   ')).toHaveLength(2)
+  })
+})
+
+describe('filterByPriority', () => {
+  it('선택된 우선순위의 합집합으로 필터링한다', () => {
+    const tasks = [make('a', { priority: 'high' }), make('b', { priority: 'low' }), make('c')]
+    expect(filterByPriority(tasks, ['high', 'low'])).toHaveLength(2)
+  })
+
+  it('선택이 없으면 전체를 반환한다', () => {
+    const tasks = [make('a'), make('b')]
+    expect(filterByPriority(tasks, [])).toBe(tasks)
   })
 })

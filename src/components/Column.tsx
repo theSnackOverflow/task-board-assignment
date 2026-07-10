@@ -6,13 +6,24 @@ interface Props {
   status: Status
   tasks: Task[]
   pendingIds: Set<string>
+  emptyLabel?: string
   onMove: (id: string, status: Status) => void
   onAdd: () => void
   onEdit: (task: Task) => void
   onDelete: (task: Task) => void
 }
 
-export function Column({ title, status, tasks, pendingIds, onMove, onAdd, onEdit, onDelete }: Props) {
+export function Column({
+  title,
+  status,
+  tasks,
+  pendingIds,
+  emptyLabel,
+  onMove,
+  onAdd,
+  onEdit,
+  onDelete,
+}: Props) {
   return (
     <section
       className="column"
@@ -35,15 +46,19 @@ export function Column({ title, status, tasks, pendingIds, onMove, onAdd, onEdit
         </button>
       </h2>
       <div className="column-body">
-        {tasks.map((t) => (
-          <Card
-            key={t.id}
-            task={t}
-            pending={pendingIds.has(t.id)}
-            onEdit={onEdit}
-            onDelete={onDelete}
-          />
-        ))}
+        {tasks.length === 0 && emptyLabel ? (
+          <p className="column-empty">{emptyLabel}</p>
+        ) : (
+          tasks.map((t) => (
+            <Card
+              key={t.id}
+              task={t}
+              pending={pendingIds.has(t.id)}
+              onEdit={onEdit}
+              onDelete={onDelete}
+            />
+          ))
+        )}
       </div>
     </section>
   )

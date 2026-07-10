@@ -1,15 +1,23 @@
-import { useEffect, useMemo, useState } from 'react'
-import type { Task, Status } from './types'
+import { useDeferredValue, useEffect, useMemo, useState } from 'react'
+import type { Task, Status, Priority } from './types'
 import { Column } from './components/Column'
 import { DeleteDialog } from './components/DeleteDialog'
 import { TaskModal } from './components/TaskModal'
+import { useDebouncedValue } from './hooks/useDebouncedValue'
 import { useBoardTasks, useStoreState, useTaskStore } from './hooks/useTasks'
 import { pendingTaskIds } from './lib/mutations'
+import { filterByPriority, filterByTitle } from './lib/tasks'
 
 const COLUMNS: { status: Status; title: string }[] = [
   { status: 'todo', title: 'To Do' },
   { status: 'in-progress', title: 'In Progress' },
   { status: 'done', title: 'Done' },
+]
+
+const PRIORITIES: { value: Priority; label: string }[] = [
+  { value: 'high', label: 'High' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'low', label: 'Low' },
 ]
 
 type ModalState = { mode: 'create'; status: Status } | { mode: 'edit'; task: Task } | null
@@ -20,18 +28,36 @@ export default function Board() {
   const tasks = useBoardTasks()
   const [modal, setModal] = useState<ModalState>(null)
   const [deleting, setDeleting] = useState<Task | null>(null)
+  const [query, setQuery] = useState('')
+  const [priorities, setPriorities] = useState<Priority[]>([])
 
   useEffect(() => {
     void store.actions.loadTasks()
   }, [store])
 
+  const debouncedQuery = useDebouncedValue(query, 180)
+  const deferredQuery = useDeferredValue(debouncedQuery)
+
+  const filtered = useMemo(
+    () => filterByPriority(filterByTitle(tasks, deferredQuery), priorities),
+    [tasks, deferredQuery, priorities],
+  )
+
   const byStatus = useMemo(() => {
     const map: Record<Status, Task[]> = { todo: [], 'in-progress': [], done: [] }
-    for (const t of tasks) map[t.status].push(t)
+    for (const t of filtered) map[t.status].push(t)
     return map
-  }, [tasks])
+  }, [filtered])
 
   const pendingIds = useMemo(() => pendingTaskIds(state.queue), [state.queue])
+
+  const filterActive = deferredQuery.trim() !== '' || priorities.length > 0
+
+  function togglePriority(value: Priority) {
+    setPriorities((prev) =>
+      prev.includes(value) ? prev.filter((p) => p !== value) : [...prev, value],
+    )
+  }
 
   const dialogs = (
     <>
@@ -92,6 +118,28 @@ export default function Board() {
   return (
     <>
       <div className="board-toolbar">
+        <div className="filter-group">
+          <input
+            type="search"
+            className="search-input"
+            placeholder="제목 검색"
+            aria-label="제목 검색"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          {PRIORITIES.map((p) => (
+            <button
+              key={p.value}
+              type="button"
+              className={`filter-chip${priorities.includes(p.value) ? ' active' : ''}`}
+              aria-pressed={priorities.includes(p.value)}
+              onClick={() => togglePriority(p.value)}
+            >
+              {p.label}
+            </button>
+          ))}
+          {filterActive && <span className="search-count">{filtered.length}건</span>}
+        </div>
         <button
           type="button"
           className="add-task"
@@ -108,6 +156,7 @@ export default function Board() {
             status={col.status}
             tasks={byStatus[col.status]}
             pendingIds={pendingIds}
+            emptyLabel={filterActive ? '검색 결과 없음' : undefined}
             onMove={store.actions.move}
             onAdd={() => setModal({ mode: 'create', status: col.status })}
             onEdit={(task) => setModal({ mode: 'edit', task })}

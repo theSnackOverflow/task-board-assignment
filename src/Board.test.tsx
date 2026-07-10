@@ -102,6 +102,40 @@ describe('태스크 생성', () => {
   })
 })
 
+describe('검색과 필터', () => {
+  it('검색은 디바운스 후 제목으로 필터링하고 결과 건수를 보여준다', async () => {
+    vi.useFakeTimers()
+    try {
+      const client = makeClient({
+        getTasks: vi
+          .fn()
+          .mockResolvedValue([
+            makeTask('a', { title: 'Fix login bug' }),
+            makeTask('b', { title: 'Write docs' }),
+          ]),
+      })
+      renderBoard(client)
+      await act(async () => {
+        await vi.runAllTimersAsync()
+      })
+
+      fireEvent.change(screen.getByLabelText('제목 검색'), { target: { value: 'fix' } })
+      expect(screen.getByText('Write docs')).toBeInTheDocument()
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(300)
+      })
+
+      expect(screen.queryByText('Write docs')).not.toBeInTheDocument()
+      expect(screen.getByText('Fix login bug')).toBeInTheDocument()
+      expect(screen.getByText('1건')).toBeInTheDocument()
+      expect(screen.getAllByText('검색 결과 없음').length).toBeGreaterThan(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
 describe('태스크 수정과 삭제', () => {
   it('수정 폼에 기존 값이 채워지고 저장하면 즉시 반영된다', async () => {
     const { defer: deferFactory } = await import('./test/factories')
