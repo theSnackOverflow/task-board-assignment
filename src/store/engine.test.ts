@@ -119,3 +119,98 @@ describe('낙관 반영과 롤백', () => {
     }
   })
 })
+
+describe('자동 재시도와 백오프', () => {
+  it('일시 실패는 지수 백오프로 2회 재시도하고 성공하면 토스트 없이 확정된다', async () => {
+    vi.useFakeTimers()
+    try {
+      const updateTask = vi
+        .fn()
+        .mockRejectedValueOnce(new Error('일시적인 서버 오류'))
+        .mockRejectedValueOnce(new Error('일시적인 서버 오류'))
+        .mockResolvedValueOnce(makeTask('a', { status: 'done', version: 2 }))
+      const store = createTaskStore(
+        makeClient({ getTasks: vi.fn().mockResolvedValue([makeTask('a')]), updateTask }),
+        seqIdGen(),
+      )
+      await store.actions.loadTasks()
+
+      store.actions.move('a', 'done')
+      await vi.advanceTimersByTimeAsync(0)
+      expect(updateTask).toHaveBeenCalledTimes(1)
+
+      await vi.advanceTimersByTimeAsync(400)
+      expect(updateTask).toHaveBeenCalledTimes(2)
+
+      await vi.advanceTimersByTimeAsync(1100)
+      expect(updateTask).toHaveBeenCalledTimes(3)
+
+      expect(store.getState().server.byId['a'].status).toBe('done')
+      expect(store.getState().toasts).toHaveLength(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('재시도 중인 이동 뒤에 삭제가 대기하면 재시도를 생략하고 삭제를 진행한다', async () => {
+    vi.useFakeTimers()
+    try {
+      const d1 = defer<Task>()
+      const updateTask = vi.fn().mockReturnValueOnce(d1.promise)
+      const deleteTask = vi.fn().mockResolvedValue(undefined)
+      const store = createTaskStore(
+        makeClient({
+          getTasks: vi.fn().mockResolvedValue([makeTask('a')]),
+          updateTask,
+          deleteTask,
+        }),
+        seqIdGen(),
+      )
+      await store.actions.loadTasks()
+
+      store.actions.move('a', 'done')
+      store.actions.remove('a')
+      expect(store.getState().queue.map((m) => m.kind)).toEqual(['move', 'delete'])
+
+      d1.reject(new Error('일시적인 서버 오류'))
+      await vi.runAllTimersAsync()
+
+      expect(updateTask).toHaveBeenCalledTimes(1)
+      expect(deleteTask).toHaveBeenCalledWith('a')
+      expect(store.getState().server.byId['a']).toBeUndefined()
+      expect(store.getState().toasts.filter((t) => t.kind === 'error')).toHaveLength(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('백오프 타이머 대기 중 삭제가 들어오면 타이머를 취소하고 삭제를 진행한다', async () => {
+    vi.useFakeTimers()
+    try {
+      const updateTask = vi.fn().mockRejectedValue(new Error('일시적인 서버 오류'))
+      const deleteTask = vi.fn().mockResolvedValue(undefined)
+      const store = createTaskStore(
+        makeClient({
+          getTasks: vi.fn().mockResolvedValue([makeTask('a')]),
+          updateTask,
+          deleteTask,
+        }),
+        seqIdGen(),
+      )
+      await store.actions.loadTasks()
+
+      store.actions.move('a', 'done')
+      await vi.advanceTimersByTimeAsync(0)
+      expect(updateTask).toHaveBeenCalledTimes(1)
+
+      store.actions.remove('a')
+      await vi.runAllTimersAsync()
+
+      expect(updateTask).toHaveBeenCalledTimes(1)
+      expect(deleteTask).toHaveBeenCalledWith('a')
+      expect(store.getState().queue).toHaveLength(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
