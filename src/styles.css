@@ -68,12 +68,24 @@ body {
 }
 
 .column-body {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  /* 대량 렌더 시 컬럼이 무한정 길어지지 않도록 스크롤만 걸어둡니다. */
+  position: relative;
   max-height: 75vh;
+  min-height: 60px;
   overflow-y: auto;
+}
+
+.column-spacer {
+  position: relative;
+  width: 100%;
+}
+
+.card-slot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 78px;
+  padding-bottom: 8px;
 }
 
 .card {
@@ -84,6 +96,8 @@ body {
   border-left: 3px solid var(--border);
   cursor: grab;
   box-shadow: 0 1px 0 rgba(9, 30, 66, 0.08);
+  height: 70px;
+  overflow: hidden;
 }
 
 .card.priority-high {
@@ -100,6 +114,9 @@ body {
   font-size: 14px;
   margin-bottom: 8px;
   line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .card-meta {

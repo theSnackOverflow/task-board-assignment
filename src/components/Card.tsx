@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { Task } from '../types'
 
 const PRIORITY_LABEL: Record<Task['priority'], string> = {
@@ -11,14 +12,19 @@ interface Props {
   pending?: boolean
   onEdit: (task: Task) => void
   onDelete: (task: Task) => void
+  onDragChange: (id: string | null) => void
 }
 
-export function Card({ task, pending, onEdit, onDelete }: Props) {
+export const Card = memo(function Card({ task, pending, onEdit, onDelete, onDragChange }: Props) {
   return (
     <article
       className={`card priority-${task.priority}`}
       draggable
-      onDragStart={(e) => e.dataTransfer.setData('text/plain', task.id)}
+      onDragStart={(e) => {
+        e.dataTransfer.setData('text/plain', task.id)
+        onDragChange(task.id)
+      }}
+      onDragEnd={() => onDragChange(null)}
     >
       {pending && <span className="pending-dot" aria-label="저장 중" />}
       <div className="card-actions">
@@ -38,4 +44,4 @@ export function Card({ task, pending, onEdit, onDelete }: Props) {
       </div>
     </article>
   )
-}
+})

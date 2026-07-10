@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import type { Task, Status, Priority } from './types'
 import { Column } from './components/Column'
 import { DeleteDialog } from './components/DeleteDialog'
@@ -59,6 +59,10 @@ export default function Board() {
     )
   }
 
+  const openCreate = useCallback((status: Status) => setModal({ mode: 'create', status }), [])
+  const openEdit = useCallback((task: Task) => setModal({ mode: 'edit', task }), [])
+  const openDelete = useCallback((task: Task) => setDeleting(task), [])
+
   const dialogs = (
     <>
       <TaskModal
@@ -107,7 +111,7 @@ export default function Board() {
     return (
       <div className="board-status">
         <p>태스크가 없습니다.</p>
-        <button type="button" onClick={() => setModal({ mode: 'create', status: 'todo' })}>
+        <button type="button" onClick={() => openCreate('todo')}>
           첫 태스크 추가
         </button>
         {dialogs}
@@ -140,11 +144,7 @@ export default function Board() {
           ))}
           {filterActive && <span className="search-count">{filtered.length}건</span>}
         </div>
-        <button
-          type="button"
-          className="add-task"
-          onClick={() => setModal({ mode: 'create', status: 'todo' })}
-        >
+        <button type="button" className="add-task" onClick={() => openCreate('todo')}>
           + 태스크 추가
         </button>
       </div>
@@ -156,11 +156,13 @@ export default function Board() {
             status={col.status}
             tasks={byStatus[col.status]}
             pendingIds={pendingIds}
+            draggingId={state.draggingId}
             emptyLabel={filterActive ? '검색 결과 없음' : undefined}
             onMove={store.actions.move}
-            onAdd={() => setModal({ mode: 'create', status: col.status })}
-            onEdit={(task) => setModal({ mode: 'edit', task })}
-            onDelete={setDeleting}
+            onAdd={openCreate}
+            onEdit={openEdit}
+            onDelete={openDelete}
+            onDragChange={store.actions.setDragging}
           />
         ))}
       </div>
