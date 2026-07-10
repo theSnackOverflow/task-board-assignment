@@ -125,6 +125,7 @@ export default function Board() {
         <div className="filter-group">
           <input
             type="search"
+            name="task-search"
             className="search-input"
             placeholder="제목 검색"
             aria-label="제목 검색"

@@ -166,6 +166,45 @@ describe('생성 흐름 - tempId 리매핑과 고아 정리', () => {
   })
 })
 
+describe('네트워크 단절과 재개', () => {
+  it('TypeError는 재시도 예산을 소모하지 않고 엔진을 멈추며, 재개 시 재전송 후 재동기화한다', async () => {
+    const getTasks = vi.fn().mockResolvedValue([makeTask('a', { version: 1 })])
+    const updateTask = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce(makeTask('a', { status: 'done', version: 2 }))
+    const store = createTaskStore(makeClient({ getTasks, updateTask }), seqIdGen())
+    await store.actions.loadTasks()
+
+    store.actions.move('a', 'done')
+    await flush()
+
+    expect(store.getState().paused).toBe(true)
+    expect(store.getState().queue[0]).toMatchObject({ state: 'queued', attempts: 0 })
+    expect(store.getState().server.byId['a'].status).toBe('todo')
+
+    store.actions.goOnline()
+    await flush()
+    await flush()
+
+    expect(updateTask).toHaveBeenCalledTimes(2)
+    expect(store.getState().server.byId['a'].status).toBe('done')
+    expect(store.getState().queue).toHaveLength(0)
+    expect(getTasks).toHaveBeenCalledTimes(2)
+  })
+
+  it('오프라인 중 신규 쓰기는 큐에 넣지 않고 토스트로 거부한다', async () => {
+    const { store } = storeWithTasks([makeTask('a')])
+    await store.actions.loadTasks()
+
+    store.actions.goOffline()
+    store.actions.move('a', 'done')
+
+    expect(store.getState().queue).toHaveLength(0)
+    expect(store.getState().toasts.some((t) => t.message.includes('오프라인'))).toBe(true)
+  })
+})
+
 describe('자동 재시도와 백오프', () => {
   it('일시 실패는 지수 백오프로 2회 재시도하고 성공하면 토스트 없이 확정된다', async () => {
     vi.useFakeTimers()

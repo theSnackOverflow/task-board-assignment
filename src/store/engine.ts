@@ -252,7 +252,17 @@ export function createEngine(deps: EngineDeps) {
   function resume() {
     if (!deps.getState().paused) return
     resyncPending = true
-    deps.replaceState((s) => ({ ...s, paused: false }))
+    deps.replaceState((s) => ({
+      ...s,
+      paused: false,
+      toasts: pushToast(s.toasts, {
+        kind: 'info',
+        message:
+          s.queue.length > 0
+            ? '연결이 복구되어 대기 중이던 변경을 저장합니다.'
+            : '연결이 복구되었습니다.',
+      }),
+    }))
     kick()
   }
 

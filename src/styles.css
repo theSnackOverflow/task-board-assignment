@@ -303,6 +303,19 @@ body {
   text-align: center;
 }
 
+.offline-banner {
+  position: sticky;
+  top: 0;
+  z-index: 90;
+  margin: -24px -24px 16px;
+  padding: 9px 16px;
+  background: var(--medium);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+
 .add-task {
   padding: 8px 14px;
   border: none;
