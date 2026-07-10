@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { ApiError } from '../api/client'
 import { defer, flush, makeClient, makeTask, seqIdGen } from '../test/factories'
 import type { Task } from '../types'
 import { createTaskStore } from './taskStore'
@@ -163,6 +164,60 @@ describe('생성 흐름 - tempId 리매핑과 고아 정리', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('409 충돌 처리', () => {
+  const conflict = (current: Task) =>
+    new ApiError(409, '다른 곳에서 먼저 수정되었습니다.', { current })
+
+  it('409를 받으면 서버 최신 상태를 반영하고, 재적용은 그 시점의 version으로 나간다', async () => {
+    const current = makeTask('a', { title: '서버 제목', status: 'in-progress', version: 5 })
+    const updateTask = vi
+      .fn()
+      .mockRejectedValueOnce(conflict(current))
+      .mockResolvedValueOnce(makeTask('a', { status: 'done', version: 6 }))
+    const { store } = storeWithTasks([makeTask('a', { version: 1 })], { updateTask })
+    await store.actions.loadTasks()
+
+    store.actions.move('a', 'done')
+    await flush()
+
+    expect(store.getState().server.byId['a']).toMatchObject({ status: 'in-progress', version: 5 })
+    expect(store.getState().queue).toHaveLength(0)
+    const toast = store.getState().toasts.find((t) => t.action)
+    expect(toast?.message).toContain('다른 곳에서 먼저 수정')
+
+    toast?.action?.run()
+    await flush()
+
+    expect(updateTask).toHaveBeenNthCalledWith(2, 'a', { status: 'done', version: 5 })
+    expect(store.getState().server.byId['a'].status).toBe('done')
+  })
+
+  it('같은 태스크에서 충돌이 3회 누적되면 재적용 버튼 없이 안내만 띄운다', async () => {
+    const updateTask = vi
+      .fn()
+      .mockRejectedValueOnce(conflict(makeTask('a', { version: 2 })))
+      .mockRejectedValueOnce(conflict(makeTask('a', { version: 3 })))
+      .mockRejectedValueOnce(conflict(makeTask('a', { version: 4 })))
+    const { store } = storeWithTasks([makeTask('a', { version: 1 })], { updateTask })
+    await store.actions.loadTasks()
+
+    store.actions.move('a', 'done')
+    await flush()
+    let toasts = store.getState().toasts
+    toasts[toasts.length - 1].action?.run()
+    await flush()
+    toasts = store.getState().toasts
+    toasts[toasts.length - 1].action?.run()
+    await flush()
+
+    toasts = store.getState().toasts
+    const last = toasts[toasts.length - 1]
+    expect(updateTask).toHaveBeenCalledTimes(3)
+    expect(last.action).toBeUndefined()
+    expect(last.message).toContain('반복')
   })
 })
 
