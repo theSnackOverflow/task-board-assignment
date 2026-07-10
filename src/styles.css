@@ -165,3 +165,71 @@ body {
     opacity: 0.45;
   }
 }
+
+.card {
+  position: relative;
+}
+
+.pending-dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--medium);
+  animation: skeleton-pulse 1.2s ease-in-out infinite;
+}
+
+.toast-stack {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 100;
+  max-width: 360px;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--text);
+  color: #fff;
+  font-size: 13px;
+  box-shadow: 0 4px 12px rgba(9, 30, 66, 0.25);
+}
+
+.toast-error {
+  background: var(--high);
+}
+
+.toast-message {
+  flex: 1;
+}
+
+.toast-action {
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background: transparent;
+  color: #fff;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.toast-close {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}

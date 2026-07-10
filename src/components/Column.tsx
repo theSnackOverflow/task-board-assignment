@@ -5,13 +5,15 @@ interface Props {
   title: string
   status: Status
   tasks: Task[]
+  pendingIds: Set<string>
   onMove: (id: string, status: Status) => void
 }
 
-export function Column({ title, status, tasks, onMove }: Props) {
+export function Column({ title, status, tasks, pendingIds, onMove }: Props) {
   return (
     <section
       className="column"
+      aria-label={title}
       onDragOver={(e) => e.preventDefault()}
       onDrop={(e) => {
         const id = e.dataTransfer.getData('text/plain')
@@ -22,9 +24,8 @@ export function Column({ title, status, tasks, onMove }: Props) {
         {title} <span className="count">{tasks.length}</span>
       </h2>
       <div className="column-body">
-        {/* ⚠️ 5,000개를 그대로 렌더합니다. 대량 데이터 성능 최적화는 당신의 몫입니다. */}
         {tasks.map((t) => (
-          <Card key={t.id} task={t} />
+          <Card key={t.id} task={t} pending={pendingIds.has(t.id)} />
         ))}
       </div>
     </section>

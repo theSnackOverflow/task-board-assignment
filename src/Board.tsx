@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react'
 import type { Task, Status } from './types'
 import { Column } from './components/Column'
 import { useBoardTasks, useStoreState, useTaskStore } from './hooks/useTasks'
+import { pendingTaskIds } from './lib/mutations'
 
 const COLUMNS: { status: Status; title: string }[] = [
   { status: 'todo', title: 'To Do' },
@@ -23,6 +24,8 @@ export default function Board() {
     for (const t of tasks) map[t.status].push(t)
     return map
   }, [tasks])
+
+  const pendingIds = useMemo(() => pendingTaskIds(state.queue), [state.queue])
 
   if (state.load.status === 'idle' || state.load.status === 'loading') {
     return <BoardSkeleton />
@@ -55,6 +58,7 @@ export default function Board() {
           title={col.title}
           status={col.status}
           tasks={byStatus[col.status]}
+          pendingIds={pendingIds}
           onMove={store.actions.move}
         />
       ))}
