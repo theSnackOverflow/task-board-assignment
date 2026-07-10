@@ -71,6 +71,37 @@ describe('Board 로드 상태', () => {
   })
 })
 
+describe('태스크 생성', () => {
+  it('제목 없이 제출하면 검증 에러, 입력 후 제출하면 즉시 카드가 보이고 확정 시 저장 표시가 사라진다', async () => {
+    const { defer: deferFactory } = await import('./test/factories')
+    const dCreate = deferFactory<ReturnType<typeof makeTask>>()
+    const client = makeClient({
+      getTasks: vi.fn().mockResolvedValue([]),
+      createTask: vi.fn().mockReturnValue(dCreate.promise),
+    })
+    renderBoard(client)
+    await screen.findByText('태스크가 없습니다.')
+
+    fireEvent.click(screen.getByRole('button', { name: '첫 태스크 추가' }))
+    fireEvent.click(screen.getByRole('button', { name: '추가' }))
+    expect(screen.getByText('제목을 입력해 주세요.')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('제목'), { target: { value: '새 태스크' } })
+    fireEvent.click(screen.getByRole('button', { name: '추가' }))
+
+    expect(await screen.findByText('새 태스크')).toBeInTheDocument()
+    expect(screen.getByLabelText('저장 중')).toBeInTheDocument()
+
+    await act(async () => {
+      dCreate.resolve(makeTask('real-1', { title: '새 태스크' }))
+      await Promise.resolve()
+    })
+
+    expect(screen.getByText('새 태스크')).toBeInTheDocument()
+    expect(screen.queryByLabelText('저장 중')).not.toBeInTheDocument()
+  })
+})
+
 describe('낙관적 이동과 롤백', () => {
   it('드롭 즉시 대상 컬럼에 보이고, 실패가 확정되면 원래 컬럼으로 돌아오며 토스트가 뜬다', async () => {
     vi.useFakeTimers()

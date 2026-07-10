@@ -1,6 +1,7 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Task, Status } from './types'
 import { Column } from './components/Column'
+import { TaskModal } from './components/TaskModal'
 import { useBoardTasks, useStoreState, useTaskStore } from './hooks/useTasks'
 import { pendingTaskIds } from './lib/mutations'
 
@@ -14,6 +15,7 @@ export default function Board() {
   const store = useTaskStore()
   const state = useStoreState()
   const tasks = useBoardTasks()
+  const [createFor, setCreateFor] = useState<Status | null>(null)
 
   useEffect(() => {
     void store.actions.loadTasks()
@@ -26,6 +28,15 @@ export default function Board() {
   }, [tasks])
 
   const pendingIds = useMemo(() => pendingTaskIds(state.queue), [state.queue])
+
+  const createModal = (
+    <TaskModal
+      open={createFor !== null}
+      initialStatus={createFor ?? 'todo'}
+      onSubmit={store.actions.create}
+      onClose={() => setCreateFor(null)}
+    />
+  )
 
   if (state.load.status === 'idle' || state.load.status === 'loading') {
     return <BoardSkeleton />
@@ -46,23 +57,36 @@ export default function Board() {
     return (
       <div className="board-status">
         <p>태스크가 없습니다.</p>
+        <button type="button" onClick={() => setCreateFor('todo')}>
+          첫 태스크 추가
+        </button>
+        {createModal}
       </div>
     )
   }
 
   return (
-    <div className="board">
-      {COLUMNS.map((col) => (
-        <Column
-          key={col.status}
-          title={col.title}
-          status={col.status}
-          tasks={byStatus[col.status]}
-          pendingIds={pendingIds}
-          onMove={store.actions.move}
-        />
-      ))}
-    </div>
+    <>
+      <div className="board-toolbar">
+        <button type="button" className="add-task" onClick={() => setCreateFor('todo')}>
+          + 태스크 추가
+        </button>
+      </div>
+      <div className="board">
+        {COLUMNS.map((col) => (
+          <Column
+            key={col.status}
+            title={col.title}
+            status={col.status}
+            tasks={byStatus[col.status]}
+            pendingIds={pendingIds}
+            onMove={store.actions.move}
+            onAdd={() => setCreateFor(col.status)}
+          />
+        ))}
+      </div>
+      {createModal}
+    </>
   )
 }
 

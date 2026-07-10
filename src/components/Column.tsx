@@ -7,9 +7,10 @@ interface Props {
   tasks: Task[]
   pendingIds: Set<string>
   onMove: (id: string, status: Status) => void
+  onAdd: () => void
 }
 
-export function Column({ title, status, tasks, pendingIds, onMove }: Props) {
+export function Column({ title, status, tasks, pendingIds, onMove, onAdd }: Props) {
   return (
     <section
       className="column"
@@ -22,6 +23,14 @@ export function Column({ title, status, tasks, pendingIds, onMove }: Props) {
     >
       <h2 className="column-title">
         {title} <span className="count">{tasks.length}</span>
+        <button
+          type="button"
+          className="column-add"
+          aria-label={`${title}에 태스크 추가`}
+          onClick={onAdd}
+        >
+          +
+        </button>
       </h2>
       <div className="column-body">
         {tasks.map((t) => (

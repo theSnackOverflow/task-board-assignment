@@ -120,6 +120,52 @@ describe('낙관 반영과 롤백', () => {
   })
 })
 
+describe('생성 흐름 - tempId 리매핑과 고아 정리', () => {
+  it('생성 확정 전의 이동은 대기했다가 서버 id로 리매핑되어 전송된다', async () => {
+    const dCreate = defer<Task>()
+    const createTask = vi.fn().mockReturnValue(dCreate.promise)
+    const updateTask = vi.fn().mockResolvedValue(makeTask('real-1', { status: 'done', version: 2 }))
+    const { store } = storeWithTasks([], { createTask, updateTask })
+    await store.actions.loadTasks()
+
+    store.actions.create({ title: '새 태스크', priority: 'high', status: 'todo' })
+    const tempId = store.getState().queue[0].taskId
+    store.actions.move(tempId, 'done')
+
+    expect(createTask).toHaveBeenCalledTimes(1)
+    expect(updateTask).not.toHaveBeenCalled()
+
+    dCreate.resolve(makeTask('real-1', { title: '새 태스크', version: 1 }))
+    await flush()
+
+    expect(updateTask).toHaveBeenCalledWith('real-1', { status: 'done', version: 1 })
+    expect(store.getState().server.ids[0]).toBe('real-1')
+  })
+
+  it('생성이 최종 실패하면 그 태스크를 참조하던 대기 뮤테이션도 함께 정리된다', async () => {
+    vi.useFakeTimers()
+    try {
+      const createTask = vi.fn().mockRejectedValue(new Error('일시적인 서버 오류'))
+      const updateTask = vi.fn()
+      const { store } = storeWithTasks([], { createTask, updateTask })
+      await store.actions.loadTasks()
+
+      store.actions.create({ title: '새 태스크', priority: 'high', status: 'todo' })
+      const tempId = store.getState().queue[0].taskId
+      store.actions.move(tempId, 'done')
+      expect(store.getState().queue).toHaveLength(2)
+
+      await vi.runAllTimersAsync()
+
+      expect(store.getState().queue).toHaveLength(0)
+      expect(updateTask).not.toHaveBeenCalled()
+      expect(store.getState().toasts.some((t) => t.message.includes('생성에 실패'))).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
 describe('자동 재시도와 백오프', () => {
   it('일시 실패는 지수 백오프로 2회 재시도하고 성공하면 토스트 없이 확정된다', async () => {
     vi.useFakeTimers()

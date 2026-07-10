@@ -220,7 +220,7 @@ export function createEngine(deps: EngineDeps) {
     }
     deps.replaceState((s) => ({
       ...s,
-      queue: dropMutation(s.queue, localId),
+      queue: mutation.kind === 'create' ? sweepTask(s.queue, taskId) : dropMutation(s.queue, localId),
       toasts: pushToast(s.toasts, {
         kind: 'error',
         sticky: true,
