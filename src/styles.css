@@ -352,3 +352,41 @@ body {
   color: #fff;
   font-weight: 600;
 }
+
+.delete-dialog h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.delete-dialog p {
+  margin: 0 0 16px;
+  font-size: 14px;
+}
+
+.card-actions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: none;
+  gap: 4px;
+}
+
+.card:hover .card-actions,
+.card:focus-within .card-actions {
+  display: flex;
+}
+
+.card-actions button {
+  padding: 2px 7px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--card-bg);
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.card-actions button:hover {
+  color: var(--text);
+  background: var(--bg);
+}

@@ -102,6 +102,57 @@ describe('태스크 생성', () => {
   })
 })
 
+describe('태스크 수정과 삭제', () => {
+  it('수정 폼에 기존 값이 채워지고 저장하면 즉시 반영된다', async () => {
+    const { defer: deferFactory } = await import('./test/factories')
+    const dUpdate = deferFactory<ReturnType<typeof makeTask>>()
+    const client = makeClient({
+      getTasks: vi.fn().mockResolvedValue([makeTask('a', { title: '원래 제목' })]),
+      updateTask: vi.fn().mockReturnValue(dUpdate.promise),
+    })
+    renderBoard(client)
+    await screen.findByText('원래 제목')
+
+    fireEvent.click(screen.getByRole('button', { name: '원래 제목 수정' }))
+    const titleInput = screen.getByLabelText('제목') as HTMLInputElement
+    expect(titleInput.value).toBe('원래 제목')
+
+    fireEvent.change(titleInput, { target: { value: '바뀐 제목' } })
+    fireEvent.click(screen.getByRole('button', { name: '저장' }))
+
+    expect(await screen.findByText('바뀐 제목')).toBeInTheDocument()
+    expect(screen.queryByText('원래 제목')).not.toBeInTheDocument()
+  })
+
+  it('삭제는 확인을 거쳐 낙관 반영되고 취소하면 유지된다', async () => {
+    const { defer: deferFactory } = await import('./test/factories')
+    const dDelete = deferFactory<void>()
+    const deleteTask = vi.fn().mockReturnValue(dDelete.promise)
+    const client = makeClient({
+      getTasks: vi.fn().mockResolvedValue([makeTask('a', { title: '지울 태스크' })]),
+      deleteTask,
+    })
+    renderBoard(client)
+    await screen.findByText('지울 태스크')
+
+    fireEvent.click(screen.getByRole('button', { name: '지울 태스크 삭제' }))
+    fireEvent.click(screen.getByRole('button', { name: '취소' }))
+    expect(screen.getByText('지울 태스크')).toBeInTheDocument()
+    expect(deleteTask).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: '지울 태스크 삭제' }))
+    fireEvent.click(screen.getByRole('button', { name: '삭제' }))
+    expect(screen.queryByText('지울 태스크')).not.toBeInTheDocument()
+    expect(deleteTask).toHaveBeenCalledWith('a')
+
+    await act(async () => {
+      dDelete.resolve(undefined)
+      await Promise.resolve()
+    })
+    expect(screen.queryByText('지울 태스크')).not.toBeInTheDocument()
+  })
+})
+
 describe('낙관적 이동과 롤백', () => {
   it('드롭 즉시 대상 컬럼에 보이고, 실패가 확정되면 원래 컬럼으로 돌아오며 토스트가 뜬다', async () => {
     vi.useFakeTimers()

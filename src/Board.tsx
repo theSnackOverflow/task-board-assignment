@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Task, Status } from './types'
 import { Column } from './components/Column'
+import { DeleteDialog } from './components/DeleteDialog'
 import { TaskModal } from './components/TaskModal'
 import { useBoardTasks, useStoreState, useTaskStore } from './hooks/useTasks'
 import { pendingTaskIds } from './lib/mutations'
@@ -11,11 +12,14 @@ const COLUMNS: { status: Status; title: string }[] = [
   { status: 'done', title: 'Done' },
 ]
 
+type ModalState = { mode: 'create'; status: Status } | { mode: 'edit'; task: Task } | null
+
 export default function Board() {
   const store = useTaskStore()
   const state = useStoreState()
   const tasks = useBoardTasks()
-  const [createFor, setCreateFor] = useState<Status | null>(null)
+  const [modal, setModal] = useState<ModalState>(null)
+  const [deleting, setDeleting] = useState<Task | null>(null)
 
   useEffect(() => {
     void store.actions.loadTasks()
@@ -29,13 +33,33 @@ export default function Board() {
 
   const pendingIds = useMemo(() => pendingTaskIds(state.queue), [state.queue])
 
-  const createModal = (
-    <TaskModal
-      open={createFor !== null}
-      initialStatus={createFor ?? 'todo'}
-      onSubmit={store.actions.create}
-      onClose={() => setCreateFor(null)}
-    />
+  const dialogs = (
+    <>
+      <TaskModal
+        key={modal?.mode === 'edit' ? modal.task.id : 'create'}
+        open={modal !== null}
+        mode={modal?.mode ?? 'create'}
+        initialStatus={modal?.mode === 'create' ? modal.status : 'todo'}
+        initialValue={modal?.mode === 'edit' ? modal.task : undefined}
+        onSubmit={(value) => {
+          if (modal?.mode === 'edit') {
+            store.actions.edit(modal.task.id, {
+              title: value.title,
+              priority: value.priority,
+              description: value.description,
+            })
+          } else {
+            store.actions.create(value)
+          }
+        }}
+        onClose={() => setModal(null)}
+      />
+      <DeleteDialog
+        task={deleting}
+        onConfirm={store.actions.remove}
+        onClose={() => setDeleting(null)}
+      />
+    </>
   )
 
   if (state.load.status === 'idle' || state.load.status === 'loading') {
@@ -57,10 +81,10 @@ export default function Board() {
     return (
       <div className="board-status">
         <p>태스크가 없습니다.</p>
-        <button type="button" onClick={() => setCreateFor('todo')}>
+        <button type="button" onClick={() => setModal({ mode: 'create', status: 'todo' })}>
           첫 태스크 추가
         </button>
-        {createModal}
+        {dialogs}
       </div>
     )
   }
@@ -68,7 +92,11 @@ export default function Board() {
   return (
     <>
       <div className="board-toolbar">
-        <button type="button" className="add-task" onClick={() => setCreateFor('todo')}>
+        <button
+          type="button"
+          className="add-task"
+          onClick={() => setModal({ mode: 'create', status: 'todo' })}
+        >
           + 태스크 추가
         </button>
       </div>
@@ -81,11 +109,13 @@ export default function Board() {
             tasks={byStatus[col.status]}
             pendingIds={pendingIds}
             onMove={store.actions.move}
-            onAdd={() => setCreateFor(col.status)}
+            onAdd={() => setModal({ mode: 'create', status: col.status })}
+            onEdit={(task) => setModal({ mode: 'edit', task })}
+            onDelete={setDeleting}
           />
         ))}
       </div>
-      {createModal}
+      {dialogs}
     </>
   )
 }

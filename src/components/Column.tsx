@@ -8,9 +8,11 @@ interface Props {
   pendingIds: Set<string>
   onMove: (id: string, status: Status) => void
   onAdd: () => void
+  onEdit: (task: Task) => void
+  onDelete: (task: Task) => void
 }
 
-export function Column({ title, status, tasks, pendingIds, onMove, onAdd }: Props) {
+export function Column({ title, status, tasks, pendingIds, onMove, onAdd, onEdit, onDelete }: Props) {
   return (
     <section
       className="column"
@@ -34,7 +36,13 @@ export function Column({ title, status, tasks, pendingIds, onMove, onAdd }: Prop
       </h2>
       <div className="column-body">
         {tasks.map((t) => (
-          <Card key={t.id} task={t} pending={pendingIds.has(t.id)} />
+          <Card
+            key={t.id}
+            task={t}
+            pending={pendingIds.has(t.id)}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
         ))}
       </div>
     </section>

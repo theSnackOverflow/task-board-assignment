@@ -10,12 +10,14 @@ export interface TaskFormValue {
 
 interface Props {
   open: boolean
+  mode: 'create' | 'edit'
   initialStatus: Status
+  initialValue?: { title: string; priority: Priority; description?: string }
   onSubmit: (value: TaskFormValue) => void
   onClose: () => void
 }
 
-export function TaskModal({ open, initialStatus, onSubmit, onClose }: Props) {
+export function TaskModal({ open, mode, initialStatus, initialValue, onSubmit, onClose }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -51,10 +53,10 @@ export function TaskModal({ open, initialStatus, onSubmit, onClose }: Props) {
   return (
     <dialog ref={dialogRef} className="task-modal" onClose={onClose}>
       <form onSubmit={handleSubmit}>
-        <h2>태스크 추가</h2>
+        <h2>{mode === 'create' ? '태스크 추가' : '태스크 수정'}</h2>
         <label>
           제목
-          <input name="title" autoComplete="off" />
+          <input name="title" autoComplete="off" defaultValue={initialValue?.title ?? ''} />
         </label>
         {error && (
           <p className="form-error" role="alert">
@@ -63,7 +65,7 @@ export function TaskModal({ open, initialStatus, onSubmit, onClose }: Props) {
         )}
         <label>
           우선순위
-          <select name="priority" defaultValue="medium">
+          <select name="priority" defaultValue={initialValue?.priority ?? 'medium'}>
             <option value="high">High</option>
             <option value="medium">Medium</option>
             <option value="low">Low</option>
@@ -71,14 +73,14 @@ export function TaskModal({ open, initialStatus, onSubmit, onClose }: Props) {
         </label>
         <label>
           설명 (선택)
-          <textarea name="description" rows={3} />
+          <textarea name="description" rows={3} defaultValue={initialValue?.description ?? ''} />
         </label>
         <div className="modal-actions">
           <button type="button" onClick={onClose}>
             취소
           </button>
           <button type="submit" className="primary">
-            추가
+            {mode === 'create' ? '추가' : '저장'}
           </button>
         </div>
       </form>

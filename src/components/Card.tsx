@@ -6,7 +6,14 @@ const PRIORITY_LABEL: Record<Task['priority'], string> = {
   low: 'Low',
 }
 
-export function Card({ task, pending }: { task: Task; pending?: boolean }) {
+interface Props {
+  task: Task
+  pending?: boolean
+  onEdit: (task: Task) => void
+  onDelete: (task: Task) => void
+}
+
+export function Card({ task, pending, onEdit, onDelete }: Props) {
   return (
     <article
       className={`card priority-${task.priority}`}
@@ -14,7 +21,17 @@ export function Card({ task, pending }: { task: Task; pending?: boolean }) {
       onDragStart={(e) => e.dataTransfer.setData('text/plain', task.id)}
     >
       {pending && <span className="pending-dot" aria-label="저장 중" />}
-      <div className="card-title">{task.title}</div>
+      <div className="card-actions">
+        <button type="button" aria-label={`${task.title} 수정`} onClick={() => onEdit(task)}>
+          수정
+        </button>
+        <button type="button" aria-label={`${task.title} 삭제`} onClick={() => onDelete(task)}>
+          삭제
+        </button>
+      </div>
+      <div className="card-title" title={task.title}>
+        {task.title}
+      </div>
       <div className="card-meta">
         <span className={`badge badge-${task.priority}`}>{PRIORITY_LABEL[task.priority]}</span>
         <span className="date">{new Date(task.createdAt).toLocaleDateString()}</span>
