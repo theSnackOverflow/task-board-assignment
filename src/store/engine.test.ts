@@ -221,6 +221,24 @@ describe('409 충돌 처리', () => {
   })
 })
 
+describe('404 태스크 소멸 처리', () => {
+  it('404를 받으면 태스크를 캐시와 큐에서 정리하고 안내 토스트를 띄운다', async () => {
+    const updateTask = vi
+      .fn()
+      .mockRejectedValue(new ApiError(404, '태스크를 찾을 수 없습니다.', null))
+    const { store } = storeWithTasks([makeTask('a'), makeTask('b')], { updateTask })
+    await store.actions.loadTasks()
+
+    store.actions.move('a', 'done')
+    await flush()
+
+    expect(store.getState().server.byId['a']).toBeUndefined()
+    expect(store.getState().server.ids).toEqual(['b'])
+    expect(store.getState().queue).toHaveLength(0)
+    expect(store.getState().toasts.some((t) => t.message.includes('이미 삭제된'))).toBe(true)
+  })
+})
+
 describe('네트워크 단절과 재개', () => {
   it('TypeError는 재시도 예산을 소모하지 않고 엔진을 멈추며, 재개 시 재전송 후 재동기화한다', async () => {
     const getTasks = vi.fn().mockResolvedValue([makeTask('a', { version: 1 })])
