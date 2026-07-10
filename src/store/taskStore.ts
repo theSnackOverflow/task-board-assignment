@@ -8,8 +8,10 @@ import type {
   Priority,
   Status,
   StoreState,
+  Task,
 } from '../types'
 import { createEngine, type EngineClient } from './engine'
+import { createTabSync } from './sync'
 
 export interface CreateInput {
   title: string
@@ -30,6 +32,7 @@ const initialState = (): StoreState => ({
 export function createTaskStore(
   client: EngineClient = api,
   genId: () => string = () => crypto.randomUUID(),
+  options: { syncChannel?: string } = {},
 ) {
   let state = initialState()
   const listeners = new Set<() => void>()
@@ -48,7 +51,39 @@ export function createTaskStore(
     }
   }
 
-  const engine = createEngine({ client, getState, replaceState, genId, reenqueue })
+  function receiveUpsert(task: Task) {
+    replaceState((s) => {
+      const existing = s.server.byId[task.id]
+      if (existing && existing.version >= task.version) return s
+      const byId = { ...s.server.byId, [task.id]: task }
+      const ids = existing ? s.server.ids : [task.id, ...s.server.ids]
+      return { ...s, server: { ids, byId } }
+    })
+  }
+
+  function receiveRemove(id: string) {
+    replaceState((s) => {
+      if (!s.server.byId[id]) return s
+      if (s.queue.some((m) => m.taskId === id)) return s
+      const byId = { ...s.server.byId }
+      delete byId[id]
+      return { ...s, server: { ids: s.server.ids.filter((x) => x !== id), byId } }
+    })
+  }
+
+  const sync = createTabSync(options.syncChannel, {
+    onUpsert: receiveUpsert,
+    onRemove: receiveRemove,
+  })
+
+  const engine = createEngine({
+    client,
+    getState,
+    replaceState,
+    genId,
+    reenqueue,
+    broadcast: { upsert: sync.publishUpsert, remove: sync.publishRemove },
+  })
 
   function reenqueue(mutation: Mutation) {
     if (mutation.kind === 'move') move(mutation.taskId, mutation.payload.status)
@@ -176,10 +211,15 @@ export function createTaskStore(
       goOffline,
       goOnline,
     },
-    dispose: engine.dispose,
+    dispose: () => {
+      engine.dispose()
+      sync.dispose()
+    },
   }
 }
 
 export type TaskStore = ReturnType<typeof createTaskStore>
 
-export const taskStore = createTaskStore()
+export const taskStore = createTaskStore(api, () => crypto.randomUUID(), {
+  syncChannel: 'taskboard-sync',
+})

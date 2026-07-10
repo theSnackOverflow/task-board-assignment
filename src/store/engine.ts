@@ -27,6 +27,7 @@ interface EngineDeps {
   replaceState: (updater: (state: StoreState) => StoreState) => void
   genId: () => string
   reenqueue: (mutation: Mutation) => void
+  broadcast: { upsert: (task: Task) => void; remove: (id: string) => void }
 }
 
 const MAX_AUTO_RETRIES = 2
@@ -103,6 +104,7 @@ export function createEngine(deps: EngineDeps) {
           const result = confirmCreate(s.server, s.queue, mutation, created)
           return { ...s, server: result.server, queue: result.queue }
         })
+        deps.broadcast.upsert(created)
       } else if (mutation.kind === 'move' || mutation.kind === 'edit') {
         const base = deps.getState().server.byId[mutation.taskId]
         if (!base) {
@@ -117,6 +119,7 @@ export function createEngine(deps: EngineDeps) {
             const result = confirmUpdate(s.server, s.queue, localId, updated)
             return { ...s, server: result.server, queue: result.queue }
           })
+          deps.broadcast.upsert(updated)
         }
       } else {
         await deps.client.deleteTask(mutation.taskId)
@@ -124,6 +127,7 @@ export function createEngine(deps: EngineDeps) {
           const result = confirmDelete(s.server, s.queue, localId, mutation.taskId)
           return { ...s, server: result.server, queue: result.queue }
         })
+        deps.broadcast.remove(mutation.taskId)
       }
     } catch (error) {
       handleFailure(mutation, error)
